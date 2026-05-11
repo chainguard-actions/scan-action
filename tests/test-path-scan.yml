@@ -1,0 +1,31 @@
+name: Test path scan with output-file and grype-version
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          path: "."
+          fail-build: "false"
+          output-format: "sarif"
+          output-file: "/tmp/grype-results.sarif"
+          severity-cutoff: "high"
+          grype-version: "0.74.0"
+      - name: Assert sarif output exists
+        env:
+          SARIF_OUT: ${{ steps.action.outputs.sarif }}
+        run: |
+          echo "sarif output: $SARIF_OUT"
+          if [ -z "$SARIF_OUT" ]; then
+            echo "FAIL: expected sarif output path to be set"
+            exit 1
+          fi
+          if [ ! -f "$SARIF_OUT" ]; then
+            echo "FAIL: sarif output file does not exist at $SARIF_OUT"
+            exit 1
+          fi
+          echo "PASS"

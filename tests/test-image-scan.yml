@@ -1,0 +1,32 @@
+name: Test image scan
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          image: alpine:3.18
+          fail-build: "false"
+          output-format: "json"
+          severity-cutoff: "critical"
+          only-fixed: "false"
+          add-cpes-if-none: "false"
+          by-cve: "false"
+      - name: Assert json output exists
+        env:
+          JSON_OUT: ${{ steps.action.outputs.json }}
+        run: |
+          echo "json output: $JSON_OUT"
+          if [ -z "$JSON_OUT" ]; then
+            echo "FAIL: expected json output path to be set"
+            exit 1
+          fi
+          if [ ! -f "$JSON_OUT" ]; then
+            echo "FAIL: json output file does not exist at $JSON_OUT"
+            exit 1
+          fi
+          echo "PASS"

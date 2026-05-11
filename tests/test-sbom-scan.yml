@@ -1,0 +1,61 @@
+name: Test SBOM scan with vex and cache-db
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Generate SBOM fixture
+        run: |
+          cat > /tmp/test-sbom.json << 'EOF'
+          {
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.4",
+            "version": 1,
+            "metadata": {
+              "timestamp": "2024-01-01T00:00:00Z",
+              "component": {
+                "type": "container",
+                "name": "test-image",
+                "version": "latest"
+              }
+            },
+            "components": []
+          }
+          EOF
+      - name: Generate VEX fixture
+        run: |
+          cat > /tmp/test-vex.json << 'EOF'
+          {
+            "@context": "https://openvex.dev/ns/v0.2.0",
+            "@id": "https://example.com/vex/test",
+            "author": "Test Author",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "version": 1,
+            "statements": []
+          }
+          EOF
+      - id: action
+        uses: .
+        with:
+          sbom: "/tmp/test-sbom.json"
+          fail-build: "false"
+          output-format: "cyclonedx-json"
+          severity-cutoff: "critical"
+          vex: "/tmp/test-vex.json"
+          cache-db: "false"
+      - name: Assert cyclonedx-json output exists
+        env:
+          CDX_JSON_OUT: ${{ steps.action.outputs.cyclonedx-json }}
+        run: |
+          echo "cyclonedx-json output: $CDX_JSON_OUT"
+          if [ -z "$CDX_JSON_OUT" ]; then
+            echo "FAIL: expected cyclonedx-json output path to be set"
+            exit 1
+          fi
+          if [ ! -f "$CDX_JSON_OUT" ]; then
+            echo "FAIL: cyclonedx-json output file does not exist at $CDX_JSON_OUT"
+            exit 1
+          fi
+          echo "PASS"
