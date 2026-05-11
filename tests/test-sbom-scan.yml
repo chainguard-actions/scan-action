@@ -1,0 +1,42 @@
+name: Test SBOM scan
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install syft and generate SBOM
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft alpine:3.18 -o spdx-json > /tmp/alpine-sbom.spdx.json
+      - name: Create minimal VEX document
+        run: |
+          cat > /tmp/vex.json << 'EOF'
+          {
+            "@context": "https://openvex.dev/ns/v0.2.0",
+            "@id": "https://example.com/vex/1",
+            "author": "test",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "version": 1,
+            "statements": []
+          }
+          EOF
+      - id: action
+        uses: .
+        with:
+          sbom: "/tmp/alpine-sbom.spdx.json"
+          fail-build: "false"
+          output-format: "sarif"
+          severity-cutoff: "critical"
+          vex: "/tmp/vex.json"
+      - name: Assert sarif output
+        env:
+          ACTUAL: ${{ steps.action.outputs.sarif }}
+        run: |
+          echo "actual sarif output: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected sarif output to be set"
+            exit 1
+          fi
+          echo "PASS"
