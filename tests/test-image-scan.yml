@@ -1,0 +1,34 @@
+name: Test image scan
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          image: alpine:3.18
+          fail-build: "false"
+          output-format: "json"
+          output-file: "scan-results.json"
+          severity-cutoff: "critical"
+          grype-version: "v0.74.0"
+          cache-db: "false"
+      - name: Assert output file exists
+        run: |
+          echo "Checking scan-results.json exists"
+          if [ ! -f "scan-results.json" ]; then
+            echo "FAIL: output file scan-results.json not found"
+            exit 1
+          fi
+          echo "PASS: output file exists"
+      - name: Assert json output is valid JSON
+        run: |
+          echo "Validating JSON output"
+          if ! python3 -c "import json, sys; json.load(open('scan-results.json'))" 2>/dev/null; then
+            echo "FAIL: scan-results.json is not valid JSON"
+            exit 1
+          fi
+          echo "PASS: valid JSON output"

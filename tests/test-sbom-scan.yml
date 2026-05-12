@@ -1,0 +1,35 @@
+name: Test SBOM scan with VEX
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Generate SBOM using syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft alpine:3.18 -o cyclonedx-json > sbom.json
+      - name: Create minimal VEX document
+        run: |
+          cat > vex.json <<'EOF'
+          {
+            "@context": "https://openvex.dev/ns/v0.2.0",
+            "@id": "https://example.com/vex/1",
+            "author": "test",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "version": 1,
+            "statements": []
+          }
+          EOF
+      - id: action
+        uses: .
+        with:
+          sbom: "sbom.json"
+          fail-build: "false"
+          output-format: "table"
+          severity-cutoff: "critical"
+          vex: "vex.json"
+      - name: Assert action completed
+        run: |
+          echo "PASS: SBOM scan with VEX completed without error"
